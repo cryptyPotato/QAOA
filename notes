@@ -1,0 +1,1 @@
+/sum_{u\in V} X_u \prod_{v\in N(u)} \sum _{w \in N(v) and w\neq u } W_w
