@@ -209,3 +209,39 @@ def bit_flip_mixer_3(graph: Union[nx.Graph, rx.PyGraph], b: int):
             
                 
     return qml.Hamiltonian(coeffs, terms)
+
+def commutation_of_mixer_cost(graph: Union[nx.Graph, rx.PyGraph]):
+    if not isinstance(graph, (nx.Graph, rx.PyGraph)):
+        raise ValueError(
+            f"Input graph must be a nx.Graph or rx.PyGraph object, got {type(graph).__name__}"
+        )
+
+    sign = -1
+
+    coeffs = []
+    terms = []
+
+    is_rx = isinstance(graph, rx.PyGraph)
+    graph_nodes = graph.node_indexes() if is_rx else graph.nodes
+    # In RX each node is assigned to an integer index starting from 0;
+    # thus, we use the following lambda function to get node-values.
+    get_nvalue = lambda i: graph.nodes()[i] if is_rx else i
+    for i in graph_nodes:
+        neighbours = sorted(graph.neighbors(i)) if is_rx else list(graph.neighbors(i))
+        degree = len(neighbours)
+
+        n_terms = [[qml.PauliY(get_nvalue(i))]] + [
+            [qml.Identity(get_nvalue(n)), qml.PauliZ(get_nvalue(n))] for n in neighbours
+        ]
+        n_coeffs = [[1, sign] for n in neighbours]
+
+        final_terms = [qml.operation.Tensor(*list(m)).prune() for m in itertools.product(*n_terms)]
+        final_coeffs = [
+            (0.5**degree) * functools.reduce(lambda x, y: x * y, list(m), -2j)
+            for m in itertools.product(*n_coeffs)
+        ]
+
+        coeffs.extend(final_coeffs)
+        terms.extend(final_terms)
+
+    return qml.Hamiltonian(coeffs, terms)
